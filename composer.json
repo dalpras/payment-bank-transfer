@@ -5,7 +5,7 @@
   "license": "MIT",
   "require": {
     "php": "^8.2",
-    "dalpras/payment-core": "^0.1 || ^1.0",
+    "dalpras/payment-core": "dev-main",
     "psr/http-message": "^1.1 || ^2.0"
   },
   "require-dev": {
