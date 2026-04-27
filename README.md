@@ -54,7 +54,7 @@ $provider = new BankTransferProvider($config);
 $response = $provider->createCheckout($checkoutRequest);
 
 // $response->redirectRequired === false
-// $response->status === PaymentStatus::PENDING_CUSTOMER_ACTION
+// $response->status === PaymentStatus::PendingCustomerAction
 // $response->raw['instructions'] contains the bank transfer instructions
 ```
 
@@ -96,7 +96,7 @@ For production, prefer an outbox implementation so side effects happen after you
 
 Creates manual bank transfer instructions and returns:
 
-- `PaymentStatus::PENDING_CUSTOMER_ACTION`
+- `PaymentStatus::PendingCustomerAction`
 - `redirectRequired = false`
 - no redirect URL
 - `providerPaymentId` equal to the generated bank transfer reference
@@ -112,7 +112,7 @@ Unsupported. Manual bank transfer cannot authorize funds.
 
 ### `capture()`
 
-Used as the manual “mark paid / confirmed” operation. Returns `PaymentStatus::CAPTURED` by default.
+Used as the manual “mark paid / confirmed” operation. Returns `PaymentStatus::Captured` by default.
 
 ### `cancel()`
 

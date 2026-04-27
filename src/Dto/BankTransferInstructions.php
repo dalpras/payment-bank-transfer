@@ -22,15 +22,15 @@ final readonly class BankTransferInstructions
     public function toArray(): array
     {
         return array_filter([
-            'beneficiary_name' => $this->beneficiaryName,
+            'beneficiaryName' => $this->beneficiaryName,
             'iban' => $this->iban,
             'bic' => $this->bic,
-            'bank_name' => $this->bankName,
-            'bank_address' => $this->bankAddress,
+            'bankName' => $this->bankName,
+            'bankAddress' => $this->bankAddress,
             'reference' => $this->reference,
             'amount' => $this->amount,
             'currency' => $this->currency,
-            'expires_at' => $this->expiresAt?->format(DATE_ATOM),
+            'expiresAt' => $this->expiresAt?->format(DATE_ATOM),
             'metadata' => $this->metadata,
         ], static fn (mixed $value): bool => $value !== null && $value !== []);
     }

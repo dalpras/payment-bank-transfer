@@ -61,7 +61,7 @@ final class BankTransferProvider implements PaymentProviderInterface
         $this->dispatch(
             BankTransferEventType::CheckoutCreated,
             $request->paymentReference,
-            PaymentStatus::PENDING_CUSTOMER_ACTION,
+            PaymentStatus::PendingCustomerAction,
             $instructions->reference,
             $payload,
             $request->correlationId,
@@ -70,14 +70,14 @@ final class BankTransferProvider implements PaymentProviderInterface
         $this->dispatch(
             BankTransferEventType::CustomerActionRequired,
             $request->paymentReference,
-            PaymentStatus::PENDING_CUSTOMER_ACTION,
+            PaymentStatus::PendingCustomerAction,
             $instructions->reference,
             $payload,
             $request->correlationId,
         );
 
         return new CheckoutResponse(
-            status: PaymentStatus::PENDING_CUSTOMER_ACTION,
+            status: PaymentStatus::PendingCustomerAction,
             redirectRequired: false,
             redirectUrl: null,
             providerPaymentId: $instructions->reference,
@@ -91,7 +91,7 @@ final class BankTransferProvider implements PaymentProviderInterface
     public function completeCheckout(CompletionRequest $request): CompletionResult
     {
         return new CompletionResult(
-            status: PaymentStatus::PENDING_CUSTOMER_ACTION,
+            status: PaymentStatus::PendingCustomerAction,
             providerPaymentId: $request->expectedProviderPaymentId,
             transactionIds: [],
             message: 'Bank transfer checkout remains pending until the merchant confirms settlement.',
@@ -110,7 +110,7 @@ final class BankTransferProvider implements PaymentProviderInterface
 
     public function capture(CaptureRequest $request): CaptureResult
     {
-        $status = $this->statusFromMetadata($request->metadata, PaymentStatus::CAPTURED);
+        $status = $this->statusFromMetadata($request->metadata, PaymentStatus::Captured);
 
         $this->dispatch(
             BankTransferEventType::PaymentConfirmed,
@@ -134,13 +134,13 @@ final class BankTransferProvider implements PaymentProviderInterface
         $this->dispatch(
             BankTransferEventType::PaymentCancelled,
             $request->paymentReference,
-            PaymentStatus::CANCELLED,
+            PaymentStatus::Cancelled,
             $request->providerPaymentId,
             ['metadata' => $request->metadata, 'manual' => true],
         );
 
         return new CancelResult(
-            status: PaymentStatus::CANCELLED,
+            status: PaymentStatus::Cancelled,
             providerPaymentId: $request->providerPaymentId,
             transactionIds: [],
             message: 'Bank transfer manually cancelled.',
@@ -150,7 +150,7 @@ final class BankTransferProvider implements PaymentProviderInterface
 
     public function refund(RefundRequest $request): RefundResult
     {
-        $status = $this->statusFromMetadata($request->metadata, PaymentStatus::REFUNDED);
+        $status = $this->statusFromMetadata($request->metadata, PaymentStatus::Refunded);
 
         $this->dispatch(
             BankTransferEventType::RefundMarked,
@@ -171,7 +171,7 @@ final class BankTransferProvider implements PaymentProviderInterface
 
     public function sync(SyncRequest $request): SyncResult
     {
-        $status = $this->statusFromMetadata($request->metadata, PaymentStatus::PENDING_CUSTOMER_ACTION);
+        $status = $this->statusFromMetadata($request->metadata, PaymentStatus::PendingCustomerAction);
 
         $this->dispatch(
             BankTransferEventType::PaymentSynced,
@@ -246,7 +246,7 @@ final class BankTransferProvider implements PaymentProviderInterface
         }
 
         if (is_string($status)) {
-            return PaymentStatus::tryFrom($status) ?? $default;
+            return PaymentStatus::TryFrom($status) ?? $default;
         }
 
         return $default;
