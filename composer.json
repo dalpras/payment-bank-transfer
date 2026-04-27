@@ -1,0 +1,29 @@
+{
+  "name": "dalpras/payment-bank-transfer",
+  "description": "Manual bank transfer connector for dalpras/payment-core.",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": "^8.2",
+    "dalpras/payment-core": "^0.1 || ^1.0",
+    "psr/http-message": "^1.1 || ^2.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.0 || ^11.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "DalPraS\\Payment\\BankTransfer\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "DalPraS\\Payment\\BankTransfer\\Tests\\": "tests/"
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "scripts": {
+    "test": "phpunit"
+  }
+}
