@@ -246,7 +246,7 @@ final class BankTransferProvider implements PaymentProviderInterface
         }
 
         if (is_string($status)) {
-            return PaymentStatus::TryFrom($status) ?? $default;
+            return PaymentStatus::tryFrom($status) ?? $default;
         }
 
         return $default;
