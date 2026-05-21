@@ -51,11 +51,13 @@ final class BankTransferProvider implements PaymentProviderInterface
     {
         $instructions = $this->buildInstructions($request);
 
+        $metadata = $this->checkoutMetadata($request, $instructions);
+
         $payload = [
             'type' => 'manual_bank_transfer',
             'manual' => true,
             'instructions' => $instructions->toArray(),
-            'metadata' => array_replace($this->config->metadata, $request->metadata),
+            'metadata' => $metadata,
         ];
 
         $this->dispatch(
@@ -85,6 +87,7 @@ final class BankTransferProvider implements PaymentProviderInterface
             expiresAt: $instructions->expiresAt,
             raw: $payload,
             message: 'Manual bank transfer instructions created.',
+            metadata: $metadata,
         );
     }
 
@@ -99,7 +102,9 @@ final class BankTransferProvider implements PaymentProviderInterface
                 'manual' => true,
                 'query_params' => $request->queryParams,
                 'body_params' => $request->bodyParams,
+                'metadata' => $request->metadata,
             ],
+            metadata: $this->operationMetadata($request->metadata, $request->expectedProviderPaymentId),
         );
     }
 
@@ -126,6 +131,9 @@ final class BankTransferProvider implements PaymentProviderInterface
             transactionIds: array_values(array_filter([$request->providerPaymentId], 'is_string')),
             message: 'Bank transfer manually marked as paid.',
             raw: ['manual' => true, 'metadata' => $request->metadata],
+            metadata: $this->operationMetadata($request->metadata, $request->providerPaymentId, [
+                'bank_transfer_confirmed_at' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ]),
         );
     }
 
@@ -145,6 +153,9 @@ final class BankTransferProvider implements PaymentProviderInterface
             transactionIds: [],
             message: 'Bank transfer manually cancelled.',
             raw: ['manual' => true, 'metadata' => $request->metadata],
+            metadata: $this->operationMetadata($request->metadata, $request->providerPaymentId, [
+                'bank_transfer_cancelled_at' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ]),
         );
     }
 
@@ -166,6 +177,9 @@ final class BankTransferProvider implements PaymentProviderInterface
             transactionIds: array_values(array_filter([$request->providerPaymentId], 'is_string')),
             message: 'Bank transfer refund manually marked.',
             raw: ['manual' => true, 'metadata' => $request->metadata],
+            metadata: $this->operationMetadata($request->metadata, $request->providerPaymentId, [
+                'bank_transfer_refunded_at' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ]),
         );
     }
 
@@ -187,6 +201,7 @@ final class BankTransferProvider implements PaymentProviderInterface
             transactionIds: array_values(array_filter([$request->providerPaymentId], 'is_string')),
             message: 'Bank transfer state is manual; sync returns the requested/manual status.',
             raw: ['manual' => true, 'metadata' => $request->metadata],
+            metadata: $this->operationMetadata($request->metadata, $request->providerPaymentId),
         );
     }
 
@@ -213,7 +228,7 @@ final class BankTransferProvider implements PaymentProviderInterface
     private function buildInstructions(CheckoutRequest $request): BankTransferInstructions
     {
         $reference = $this->referenceGenerator()->generate($request);
-        $total = $request->amounts->total ?? null;
+        $total = $request->amounts->grandTotal;
 
         return new BankTransferInstructions(
             beneficiaryName: $this->config->beneficiaryName,
@@ -226,6 +241,56 @@ final class BankTransferProvider implements PaymentProviderInterface
             currency: $this->moneyFormatter()->currency($total),
             expiresAt: $this->expiration(),
             metadata: array_replace($this->config->metadata, $request->providerOptions['bank_transfer'] ?? []),
+        );
+    }
+
+
+    /**
+     * Metadata returned to payment-core during checkout creation.
+     *
+     * The generic keys make the provider compatible with the core enrichment
+     * layer, while the bank_transfer_* keys keep the manual transfer details
+     * explicit for applications that persist metadata on their Order entity.
+     */
+    private function checkoutMetadata(CheckoutRequest $request, BankTransferInstructions $instructions): array
+    {
+        return array_replace(
+            $this->config->metadata,
+            $request->metadata,
+            [
+                'provider' => $this->code(),
+                'provider_payment_id' => $instructions->reference,
+                'order_id' => $request->merchantReference,
+                'payment_reference' => $request->paymentReference,
+                'manual' => true,
+                'bank_transfer_reference' => $instructions->reference,
+                'bank_transfer_iban' => $instructions->iban,
+                'bank_transfer_bic' => $instructions->bic,
+                'bank_transfer_beneficiary_name' => $instructions->beneficiaryName,
+                'bank_transfer_amount' => $instructions->amount,
+                'bank_transfer_currency' => $instructions->currency,
+                'bank_transfer_expires_at' => $instructions->expiresAt?->format(DATE_ATOM),
+            ],
+        );
+    }
+
+    /**
+     * Metadata returned after manual operations.
+     *
+     * Since there is no bank API operation id, the bank transfer reference remains
+     * the provider id used by payment-core for later sync/cancel/refund calls.
+     */
+    private function operationMetadata(array $requestMetadata, ?string $providerPaymentId, array $extra = []): array
+    {
+        return array_replace(
+            $requestMetadata,
+            [
+                'provider' => $this->code(),
+                'provider_payment_id' => $providerPaymentId,
+                'manual' => true,
+                'bank_transfer_reference' => $providerPaymentId,
+            ],
+            $extra,
         );
     }
 

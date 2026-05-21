@@ -169,3 +169,109 @@ This keeps the connector reusable and provider-focused.
 ## License
 
 MIT
+
+## Compatibility with payment-core metadata persistence
+
+This package is compatible with the payment-core metadata lifecycle introduced for
+redirect and multi-step providers.
+
+Even though a manual bank transfer has no external gateway operation id, the
+provider still returns normalized metadata so `PaymentManager` can persist and
+reuse the payment reference consistently across requests.
+
+### Metadata returned by `createCheckout()`
+
+`createCheckout()` returns `CheckoutResponse::$metadata` with generic keys used by
+core and bank-transfer-specific keys used by applications:
+
+```php
+[
+    'provider' => 'bank_transfer',
+    'provider_payment_id' => 'PAYMENT-REFERENCE',
+    'order_id' => 'MERCHANT-REFERENCE',
+    'payment_reference' => 'PAYMENT-REFERENCE',
+    'manual' => true,
+    'bank_transfer_reference' => 'PAYMENT-REFERENCE',
+    'bank_transfer_iban' => 'IT...',
+    'bank_transfer_bic' => '...',
+    'bank_transfer_beneficiary_name' => 'My Store Srl',
+    'bank_transfer_amount' => '100.00',
+    'bank_transfer_currency' => 'EUR',
+    'bank_transfer_expires_at' => '2026-01-01T12:00:00+00:00',
+]
+```
+
+Applications that persist provider metadata on their order entity should merge
+this metadata after checkout creation/completion, just like they do for Nexi and
+PayPal.
+
+### Completion
+
+`completeCheckout()` keeps the payment in `PendingCustomerAction`. There is no
+external provider to verify. The merchant must later confirm settlement manually,
+usually by calling `capture()` through `PaymentManager`.
+
+### Manual confirmation
+
+Use `capture()` to mark the bank transfer as paid:
+
+```php
+$result = $paymentManager->capture(new CaptureRequest(
+    providerCode: 'bank_transfer',
+    paymentReference: $paymentReference,
+    providerPaymentId: null,
+    idempotencyKey: $paymentReference . ':bank-transfer-confirm',
+    metadata: [
+        'description' => 'Bank transfer received',
+    ],
+));
+```
+
+If the payment repository is backed by Redis/Symfony Cache, `PaymentManager` will
+reuse the stored `provider_payment_id` / `bank_transfer_reference` automatically.
+
+### Manual cancellation
+
+Use `cancel()` to mark the pending transfer as cancelled:
+
+```php
+$result = $paymentManager->cancel(new CancelRequest(
+    providerCode: 'bank_transfer',
+    paymentReference: $paymentReference,
+    providerPaymentId: null,
+    idempotencyKey: $paymentReference . ':bank-transfer-cancel',
+    metadata: [
+        'description' => 'Customer cancelled before transfer was received',
+    ],
+));
+```
+
+### Manual refund
+
+Use `refund()` to mark an already captured transfer as manually refunded:
+
+```php
+$result = $paymentManager->refund(new RefundRequest(
+    providerCode: 'bank_transfer',
+    paymentReference: $paymentReference,
+    providerPaymentId: null,
+    idempotencyKey: $paymentReference . ':bank-transfer-refund:' . $refundId,
+    metadata: [
+        'amount_minor' => '5000',
+        'currency' => 'EUR',
+        'description' => 'Manual refund executed by accounting',
+    ],
+));
+```
+
+### Persistence recommendation
+
+Use the same production setup as Nexi and PayPal:
+
+- `PaymentRepositoryInterface` wired to `CachePaymentRepository` or `RedisPaymentRepository`
+- `IdempotencyStoreInterface` wired to `CacheIdempotencyStore` or `RedisIdempotencyStore`
+- durable order-level metadata persisted in your application entity, for example
+  `OrderEntity::paymentMetadata`
+
+The cache/Redis repository is temporary flow state. Your order table remains the
+long-term source for accounting, customer service, refunds and debugging.
