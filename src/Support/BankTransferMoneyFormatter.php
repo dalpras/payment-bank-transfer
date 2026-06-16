@@ -22,7 +22,7 @@ final class BankTransferMoneyFormatter
             }
         }
 
-        foreach (['amount', 'minorAmount', 'amountMinor', 'minorUnits'] as $property) {
+        foreach (['amount', 'minorAmount', 'minorUnits'] as $property) {
             $value = $this->publicPropertyValue($money, $property);
 
             if (is_int($value)) {
