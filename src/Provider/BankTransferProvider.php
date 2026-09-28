@@ -187,6 +187,16 @@ final class BankTransferProvider implements PaymentProviderInterface
     {
         $status = $this->statusFromMetadata($request->metadata, PaymentStatus::PendingCustomerAction);
 
+        // Unknown is not a useful terminal state for a manual bank transfer: there
+        // is no remote gateway to query. Recover from historical/bad reconciliation
+        // by using durable confirmation metadata when available, otherwise keep the
+        // transfer waiting for the customer/merchant action.
+        if ($status === PaymentStatus::Unknown) {
+            $status = $this->hasConfirmationEvidence($request->metadata)
+                ? PaymentStatus::Captured
+                : PaymentStatus::PendingCustomerAction;
+        }
+
         $this->dispatch(
             BankTransferEventType::PaymentSynced,
             $request->paymentReference,
@@ -201,7 +211,9 @@ final class BankTransferProvider implements PaymentProviderInterface
             transactionIds: array_values(array_filter([$request->providerPaymentId], 'is_string')),
             message: 'Bank transfer state is manual; sync returns the requested/manual status.',
             raw: ['manual' => true, 'metadata' => $request->metadata],
-            metadata: $this->operationMetadata($request->metadata, $request->providerPaymentId),
+            metadata: $this->operationMetadata($request->metadata, $request->providerPaymentId, [
+                'status' => $status->value,
+            ]),
         );
     }
 
@@ -263,6 +275,7 @@ final class BankTransferProvider implements PaymentProviderInterface
                 'order_id' => $request->merchantReference,
                 'payment_reference' => $request->paymentReference,
                 'manual' => true,
+                'bank_transfer_instructions' => $instructions->toArray(),
                 'bank_transfer_reference' => $instructions->reference,
                 'bank_transfer_iban' => $instructions->iban,
                 'bank_transfer_bic' => $instructions->bic,
@@ -315,6 +328,18 @@ final class BankTransferProvider implements PaymentProviderInterface
         }
 
         return $default;
+    }
+
+    private function hasConfirmationEvidence(array $metadata): bool
+    {
+        foreach (['bank_transfer_confirmed_at', 'confirmed_at'] as $key) {
+            $value = $metadata[$key] ?? null;
+            if (is_string($value) && trim($value) !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function dispatch(

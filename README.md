@@ -191,6 +191,17 @@ core and bank-transfer-specific keys used by applications:
     'order_id' => 'MERCHANT-REFERENCE',
     'payment_reference' => 'PAYMENT-REFERENCE',
     'manual' => true,
+    'bank_transfer_instructions' => [
+        'beneficiaryName' => 'My Store Srl',
+        'iban' => 'IT...',
+        'bic' => '...',
+        'bankName' => 'My Bank',
+        'bankAddress' => 'Main Branch',
+        'reference' => 'PAYMENT-REFERENCE',
+        'amount' => '100.00',
+        'currency' => 'EUR',
+        'expiresAt' => '2026-01-01T12:00:00+00:00',
+    ],
     'bank_transfer_reference' => 'PAYMENT-REFERENCE',
     'bank_transfer_iban' => 'IT...',
     'bank_transfer_bic' => '...',
@@ -203,7 +214,10 @@ core and bank-transfer-specific keys used by applications:
 
 Applications that persist provider metadata on their order entity should merge
 this metadata after checkout creation/completion, just like they do for Nexi and
-PayPal.
+PayPal. New application code should prefer the serialized
+`bank_transfer_instructions` snapshot and rehydrate it with
+`BankTransferInstructions::fromArray()`. The flattened `bank_transfer_*` keys are
+kept for backward compatibility.
 
 ### Completion
 

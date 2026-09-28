@@ -18,6 +18,25 @@ final readonly class BankTransferInstructions
     ) {
     }
 
+    /** @param array<string, mixed> $data */
+    public static function fromArray(array $data): self
+    {
+        return new self(
+            beneficiaryName: (string) ($data['beneficiaryName'] ?? ''),
+            iban: (string) ($data['iban'] ?? ''),
+            bic: isset($data['bic']) ? (string) $data['bic'] : null,
+            bankName: isset($data['bankName']) ? (string) $data['bankName'] : null,
+            bankAddress: isset($data['bankAddress']) ? (string) $data['bankAddress'] : null,
+            reference: isset($data['reference']) ? (string) $data['reference'] : null,
+            amount: isset($data['amount']) ? (string) $data['amount'] : null,
+            currency: isset($data['currency']) ? (string) $data['currency'] : null,
+            expiresAt: isset($data['expiresAt']) && $data['expiresAt'] !== ''
+                ? new \DateTimeImmutable((string) $data['expiresAt'])
+                : null,
+            metadata: is_array($data['metadata'] ?? null) ? $data['metadata'] : [],
+        );
+    }
+
     /** @return array<string, mixed> */
     public function toArray(): array
     {
