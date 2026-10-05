@@ -4,6 +4,7 @@ namespace DalPraS\Payment\BankTransfer\Tests;
 
 use DalPraS\Payment\BankTransfer\Config\BankTransferConfig;
 use DalPraS\Payment\BankTransfer\Provider\BankTransferProvider;
+use DalPraS\Payment\Dto\CancelRequest;
 use DalPraS\Payment\Dto\CheckoutRequest;
 use DalPraS\Payment\Dto\SyncRequest;
 use DalPraS\Payment\Enum\Currency;
@@ -85,4 +86,29 @@ final class BankTransferProviderTest extends TestCase
         self::assertSame(PaymentStatus::Captured, $result->status);
         self::assertSame(PaymentStatus::Captured->value, $result->metadata['status']);
     }
+
+    public function testCancelMarksManualTransferCancelled(): void
+    {
+        $provider = new BankTransferProvider(new BankTransferConfig(
+            beneficiaryName: 'VIMAR S.p.A.',
+            iban: 'IT62TEST',
+        ));
+
+        $result = $provider->cancel(new CancelRequest(
+            providerCode: 'bank_transfer',
+            paymentReference: 'payment-ref',
+            providerPaymentId: 'event-order-8082',
+            metadata: [
+                'status' => PaymentStatus::Cancelled->value,
+                'rejected_by' => 'backoffice',
+            ],
+        ));
+
+        self::assertSame(PaymentStatus::Cancelled, $result->status);
+        self::assertSame('event-order-8082', $result->providerPaymentId);
+        self::assertSame(PaymentStatus::Cancelled->value, $result->metadata['status']);
+        self::assertSame('backoffice', $result->metadata['rejected_by']);
+        self::assertArrayHasKey('bank_transfer_cancelled_at', $result->metadata);
+    }
+
 }
